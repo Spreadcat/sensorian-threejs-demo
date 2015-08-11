@@ -1,0 +1,120 @@
+<html>
+	<head>
+		<title>Three.js Sensorian DEMO</title>
+	</head>
+	<body>
+		<div id="rendering_div"></div>
+		<script type="text/javascript" src="js/three.min.js"></script>
+		<script type="text/javascript" src="js/CanvasRenderer.js"></script>
+		<script type="text/javascript" src="js/Projector.js"></script>
+		<script type="text/javascript">
+			//BEGIN THREE.JS CODE
+			var scene = new THREE.Scene(); //Create the THREE.JS scene
+			var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); //Create a camera
+			var rendering_div = document.getElementById("rendering_div"); //Render here
+			
+			//Setup the render. Use CanvasRender as not all browser configurations support WebGL.
+			var renderer = new THREE.CanvasRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			rendering_div.appendChild(renderer.domElement);
+			
+			var geometry = new THREE.BoxGeometry(4, 2, 1); //Create the geometry for the Raspberry Pi rectangular prism
+			
+			//Create the textured material for the Raspberry Pi rectangular prism
+			var material_array = [];
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("rpi_back.png"), overdraw: true}));
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("rpi_front.png"), overdraw: true}));
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("rpi_hdmi_side.png"), overdraw: true}));
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("rpi_gpio_side.png"), overdraw: true}));
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("RPi_top_vector.png"), overdraw: true}));
+			material_array.push(new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture("circuit_board.jpg"), overdraw: true}));
+			var sensorian_cube_material = new THREE.MeshFaceMaterial(material_array);
+			
+			//Create the skybox
+			var skymaterial = new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture("cloud_texture.png"), side: THREE.BackSide, overdraw: true});
+			var skygeometry = new THREE.SphereGeometry(60,14,14);
+			var skybox = new THREE.Mesh(skygeometry,skymaterial); //Create the skybox mesh
+			
+			var cube = new THREE.Mesh(geometry, sensorian_cube_material); //Create the Raspberry Pi rectangular prism mesh
+			cube.up = new THREE.Vector3(0,10,0); //Set its normal vector to point straight up
+			
+			var hemi_light = new THREE.HemisphereLight(0x0000ff,0x555555,3); //Create a light source
+			
+			//Create the scence
+			scene.add(skybox);
+			scene.add(cube);
+			scene.add(hemi_light);
+			
+			//X-Axis
+			var x_line_material = new THREE.LineBasicMaterial({color: 0xff0000});
+			var x_line_geometry = new THREE.Geometry();
+			x_line_geometry.vertices.push(new THREE.Vector3(0,0,0));
+			x_line_geometry.vertices.push(new THREE.Vector3(10,0,0));
+			var x_line_vect = new THREE.Line(x_line_geometry,x_line_material);
+			scene.add(x_line_vect);
+			
+			//Y-Axis
+			var y_line_material = new THREE.LineBasicMaterial({color: 0x00ff00});
+			var y_line_geometry = new THREE.Geometry();
+			y_line_geometry.vertices.push(new THREE.Vector3(0,0,0));
+			y_line_geometry.vertices.push(new THREE.Vector3(0,10,0));
+			var y_line_vect = new THREE.Line(y_line_geometry,y_line_material);
+			scene.add(y_line_vect);
+			
+			//Z-Axis
+			var z_line_material = new THREE.LineBasicMaterial({color: 0x0000ff});
+			var z_line_geometry = new THREE.Geometry();
+			z_line_geometry.vertices.push(new THREE.Vector3(0,0,0));
+			z_line_geometry.vertices.push(new THREE.Vector3(0,0,10));
+			var z_line_vect = new THREE.Line(z_line_geometry,z_line_material);
+			scene.add(z_line_vect);
+			
+			//Normal Vector
+			var n_line_material = new THREE.LineBasicMaterial({color: 0x00ffff});
+			var n_line_geometry = new THREE.Geometry();
+			n_line_geometry.vertices.push(new THREE.Vector3(0,0,0));
+			n_line_geometry.vertices.push(new THREE.Vector3(0,0,10));
+			var n_line_vect = new THREE.Line(n_line_geometry,n_line_material);
+			scene.add(n_line_vect);
+			
+			//Position the camera
+			camera.position.z = 5;
+			camera.position.y = 1;
+			camera.position.x = 1;
+			camera.lookAt(new THREE.Vector3(0,0,0));
+			
+			function render()
+			{
+				requestAnimationFrame(render);
+				renderer.render(scene, camera);
+			}
+			render();
+			
+			//END THREE.JS CODE
+			
+			//BEGIN WEBSOCKET CODE
+			var rotation_socket = new WebSocket("ws://" + window.location.host +"/websocket");
+			
+			rotation_socket.onopen = function() {
+				//Alert the user that all is good
+				alert("Web socket opened");
+				rotation_socket.send("Hello, world");
+			};
+			
+			rotation_socket.onmessage = function(evt) {
+				var msg = JSON.parse(evt.data);
+				var comp_x = msg[0];
+				var comp_y = msg[1];
+				var comp_z = msg[2];
+				var pointing_vector = new THREE.Vector3(-1*comp_x,comp_z,comp_y);
+				//Align the normal vector of the Raspberry Pi rectangular prism with the normal vector of the Sensorian
+				cube.lookAt(pointing_vector);
+				n_line_vect.lookAt(pointing_vector);
+			};
+			
+			
+			//END WEBSOCKET CODE
+			
+		</script>
+	</body>
+</html>
